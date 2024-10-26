@@ -1,73 +1,75 @@
-from datetime import datetime
+from database import conectar
 
-# Lista para armazenar as missões
-missoes = []
+def adicionar_missao(nome, data_lancamento, destino, estado, tripulacao, carga_util, duracao, custo, status):
 
-def adicionar_missao(nome, data_lancamento, destino, estado, tripulacao, carga, duracao, custo, status):
-    
-    try:
-        # Verifica se todos os campos estão preenchidos
-        if not all([nome, data_lancamento, destino, estado, tripulacao, carga, duracao, custo, status]):
-            raise ValueError("Todos os campos devem ser preenchidos.")
-
-        # Tenta converter a data de lançamento para o formato correto
-        data_lancamento = datetime.strptime(data_lancamento, "%d/%m/%Y")
-        
-        # Cria um novo dicionário para a missão
-        nova_missao = {
-            "id": len(missoes) + 1,  # Gera um ID único
-            "nome": nome,
-            "data": data_lancamento,
-            "destino": destino,
-            "estado": estado,
-            "tripulacao": tripulacao.split(','),
-            "carga": carga,
-            "duracao": duracao,
-            "custo": float(custo),
-            "status": status
-        }
-
-        # Adiciona a nova missão à lista
-        missoes.append(nova_missao)
-        return True
-    except ValueError as e:
-        print(f"Erro ao adicionar missão: {e}")
-        return False
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO missoes (nome, data_lancamento, destino, estado, tripulacao, carga_util, duracao, custo, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (nome, data_lancamento, destino, estado, tripulacao, carga_util, duracao, custo, status))
+        conn.commit()  # Confirma a inserção
+        conn.close()  # Fecha a conexão
+        print("Missão adicionada com sucesso!")
 
 def listar_missoes():
-    
-    return sorted(missoes, key=lambda x: x['data'], reverse=True)
 
-def buscar_missao_por_id(id_missao):
-    
-    for missao in missoes:
-        if missao['id'] == id_missao:
-            return missao
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM missoes ORDER BY data_lancamento DESC')  # Busca todas as missões
+        missoes = cursor.fetchall()  # Obtém todos os resultados
+        conn.close()  # Fecha a conexão
+        return missoes
+    return []
+
+def buscar_missao_por_id(missao_id):
+
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM missoes WHERE id = ?', (missao_id,))  # Busca a missão pelo ID
+        missao = cursor.fetchone()  # Obtém o resultado
+        conn.close()  # Fecha a conexão
+        return missao
     return None
 
-def buscar_missoes_por_intervalo_data(data_inicial, data_final):
-    
-    data_inicial = datetime.strptime(data_inicial, "%d/%m/%Y")
-    data_final = datetime.strptime(data_final, "%d/%m/%Y")
-    return [missao for missao in missoes if data_inicial <= missao['data'] <= data_final]
+def atualizar_missao(missao_id, nome, data_lancamento, destino, estado, tripulacao, carga_util, duracao, custo, status):
 
-def atualizar_missao(id_missao, estado, destino, tripulacao, carga, duracao, custo, status):
-    
-    missao = buscar_missao_por_id(id_missao)
-    if missao:
-        # Atualiza os campos da missão
-        missao['estado'] = estado
-        missao['destino'] = destino
-        missao['tripulacao'] = tripulacao.split(',')
-        missao['carga'] = carga
-        missao['duracao'] = duracao
-        missao['custo'] = float(custo)
-        missao['status'] = status
-        return True
-    return False
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE missoes 
+            SET nome = ?, data_lancamento = ?, destino = ?, estado = ?, tripulacao = ?, carga_util = ?, duracao = ?, custo = ?, status = ?
+            WHERE id = ?
+        ''', (nome, data_lancamento, destino, estado, tripulacao, carga_util, duracao, custo, status, missao_id))
+        conn.commit()  # Confirma as alterações
+        conn.close()  # Fecha a conexão
+        print("Missão atualizada com sucesso!")
 
-def excluir_missao(id_missao):
-    
-    global missoes
-    missoes = [missao for missao in missoes if missao['id'] != id_missao]
-    return len(missoes) < len(missoes) + 1  # Retorna True se a missão foi excluída
+def excluir_missao(missao_id):
+
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM missoes WHERE id = ?', (missao_id,))  # Exclui a missão pelo ID
+        conn.commit()  # Confirma a exclusão
+        conn.close()  # Fecha a conexão
+        print("Missão excluída com sucesso!")
+
+def pesquisar_missoes_por_data(data_inicial, data_final):
+
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM missoes 
+            WHERE data_lancamento BETWEEN ? AND ?
+            ORDER BY data_lancamento DESC
+        ''', (data_inicial, data_final))  # Busca missões entre as datas
+        missoes = cursor.fetchall()  # Obtém todos os resultados
+        conn.close()  # Fecha a conexão
+        return missoes
+    return []
